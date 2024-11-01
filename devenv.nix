@@ -1,14 +1,52 @@
 { pkgs, lib, config, inputs, ... }:
 
+let
+  # Anything which is referenced multiple times is defined as a variable here...
+
+  # Locales
+  glibcLocales = pkgs.glibcLocales;
+
+  # Bundle of SSL certificates
+  cacert = pkgs.cacert;
+in
 {
-  # https://devenv.sh/basics/
-  env.GREET = "devenv";
+  # Set environment variables
+  env = {
+    # Set LANG for locales
+    LANG = "C.UTF-8";
 
-  # https://devenv.sh/packages/
-  packages = [ pkgs.git ];
+    # Remove duplicate commands from Bash shell command history
+    HISTCONTROL = "ignoreboth:erasedups";
 
-  # https://devenv.sh/languages/
-  # languages.rust.enable = true;
+    # Without this, there are warnings about LANG, LC_ALL and locales.
+    # Many tests fail due those warnings showing up in test outputs too...
+    # This solution is from: https://gist.github.com/aabs/fba5cd1a8038fb84a46909250d34a5c1
+    LOCALE_ARCHIVE = "${glibcLocales}/lib/locale/locale-archive";
+
+    # For the bundle of SSL certificates to be used in applications (like curl and others...)
+    SSL_CERT_FILE = "${cacert}/etc/ssl/certs/ca-bundle.crt";
+  };
+
+  # Install packages - https://devenv.sh/packages/
+  packages = with pkgs; [
+    # Timezones
+    tzdata
+    # Locales
+    glibcLocales
+    # Bundle of SSL certificates
+    cacert
+  ];
+
+  # Setup languages and their tools - https://devenv.sh/languages/
+  languages.python = {
+    enable = true;
+    version = "3.12.7";
+    # Enable Python virtual environment
+    venv = {
+      enable = true;
+      requirements = ./requirements.txt;
+    };
+  };
 
   # https://devenv.sh/processes/
   # processes.cargo-watch.exec = "cargo-watch";
@@ -17,13 +55,11 @@
   # services.postgres.enable = true;
 
   # https://devenv.sh/scripts/
-  scripts.hello.exec = ''
-    echo hello from $GREET
-  '';
+  # scripts.hello.exec = ''
+  #   echo hello from $GREET
+  # '';
 
   enterShell = ''
-    hello
-    git --version
   '';
 
   # https://devenv.sh/tasks/
@@ -35,7 +71,6 @@
   # https://devenv.sh/tests/
   enterTest = ''
     echo "Running tests"
-    git --version | grep --color=auto "${pkgs.git.version}"
   '';
 
   # https://devenv.sh/pre-commit-hooks/
